@@ -1,0 +1,136 @@
+{% set numFiles = data.files|length %}
+{% set creator0 = data.creationInfo.creators[0] | split(': ')[1] | replace({'(': '-', ')': ''}) %}
+{% set creator1 = data.creationInfo.creators[1] | split(': ')[1] | replace({' (': '-', ')': ''}) %}
+{% set dotToDash = {'.' : '-'} %}
+
+{
+  "@type": "Tool",
+  "@id": "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator0 }}",
+  "creationInfo": {
+    "@type": "CreationInfo",
+    "specVersion": "3.0.0",
+    "created": "{{ data.creationInfo.created }}",
+    "createdBy": [
+      "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator1 }}"
+    ],
+    "profile": ["core", "software", "licensing"],
+    "dataLicense": "https://spdx.org/licenses/{{ data.dataLicense }}",
+    "createdUsing": [
+      "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator0 | replace(dotToDash) }}"
+    ]
+  },
+  "name": "{{ creator0 }}"
+},
+{
+  "@type": "Person",
+  "@id": "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator1 }}",
+  "creationInfo": {
+    "@type": "CreationInfo",
+    "specVersion": "3.0.0",
+    "created": "{{ data.creationInfo.created }}",
+    "createdBy": [
+      "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator1 }}"
+    ],
+    "profile": ["core", "software", "licensing"],
+    "dataLicense": "https://spdx.org/licenses/{{ data.dataLicense }}",
+    "createdUsing": [
+      "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator0 | replace(dotToDash) }}"
+    ]
+  },
+  "name": "{{ data.creationInfo.creators[1] | split(': ')[1] | split(' ')[0]}}",
+  "externalIdentifier": [
+    {
+      "@type": "ExternalIdentifier",
+      "externalIdentifierType": "email",
+      "identifier": "{{ data.creationInfo.creators[1] | split(': ')[1] | split(' (')[1] | split(')')[0]}}"
+    }
+  ]
+},
+{
+  "@type": "SpdxDocument",
+  "@id": "{{ data.documentNamespace }}#{{ data.SPDXID }}",
+  "creationInfo": {
+    "@type": "CreationInfo",
+    "specVersion": "3.0.0",
+    "created": "{{ data.creationInfo.created }}",
+    "createdBy": [
+      "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator1 }}"
+    ],
+    "profile": ["core", "software", "licensing"],
+    "dataLicense": "https://spdx.org/licenses/{{ data.dataLicense }}",
+    "createdUsing": [
+      "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator0 | replace(dotToDash) }}"
+    ]
+  },
+  "name": "{{ data.name }}",
+  "element": [
+    "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator0 | replace(dotToDash) }}",
+    "{{ data.documentNamespace }}#SPDXRef-Actor-{{ creator1 }}",
+    {% for package in data.packages %}
+    "{{ data.documentNamespace }}#{{ package.SPDXID }}",
+    {% endfor %}
+    {% for file in data.files %}
+    "{{ data.documentNamespace }}#{{ file.SPDXID }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  "rootElement": [
+    "{{ data.documentNamespace }}#{{ data.packages[0].SPDXID }}"
+  ]
+},
+{% for package in data.packages %}
+{
+  "@type": "Package",
+  "@id": "{{ data.documentNamespace }}#{{ package.SPDXID }}",
+  "name": "{{ package.name }}",
+  "verifiedUsing": [
+    {% for checksum in package.checksums %}
+    {
+      "@type": "Hash",
+      "algorithm": "{{ checksum.algorithm | lower }}",
+      "hashValue": "{{ checksum.checksumValue }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+},
+{% endfor %}
+{% for file in data.files %}
+{
+  "@type": "File",
+  "@id": "{{ data.documentNamespace }}#{{ file.SPDXID }}",
+  "name": "{{ file.fileName }}",
+  "verifiedUsing": [
+    {% for checksum in file.checksums %}
+    {
+      "@type": "Hash",
+      "algorithm": "{{ checksum.algorithm | lower }}",
+      "hashValue": "{{ checksum.checksumValue }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  "copyrightText": "{{ file.copyrightText | replace({'\n': '\\n'}) }}"
+},
+{% endfor %}
+{% for package in data.packages %}
+{
+  "@type": "Relationship",
+  "@id": "{{ data.documentNamespace }}#SPDXRef-Relationship-{{ loop.index0 }}",
+  "from": "{{ data.documentNamespace }}#{{ data.SPDXID }}",
+  "to": [
+    "{{ data.documentNamespace }}#{{ package.SPDXID }}"
+  ],
+  "relationshipType": "describes"
+},
+{% endfor %}
+{% for package in data.packages %}
+{
+  "@type": "Relationship",
+  "@id": "{{ data.documentNamespace }}#SPDXRef-Relationship-{{ numFiles }}",
+  "from": "{{ data.documentNamespace }}#{{ package.SPDXID }}",
+  "to": [
+    {% for file in data.files %}
+    "{{ data.documentNamespace }}#{{ file.SPDXID }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  "relationshipType": "contains"
+}{% if not loop.last %},{% endif %}
+{% endfor %}
